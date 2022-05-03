@@ -1,4 +1,4 @@
-use lisp::parse;
+use lisp::{RisprError, AstResult, parse};
 use rustyline::{self, error::ReadlineError, Editor};
 
 const EXIT_MESSAGE: &str = "Exiting...";
@@ -18,8 +18,8 @@ fn main() {
         match input {
             Ok(line) => {
                 rl.add_history_entry(&line);
-                let tree = parse(&line);
-                println!("{}", tree);
+                let result = parse(&line);
+                print_ast_results(result)
             }
             Err(ReadlineError::Interrupted) => {
                 println!("{}", EXIT_MESSAGE);
@@ -35,5 +35,12 @@ fn main() {
                 panic!("Error: {}", err);
             }
         }
+    }
+}
+
+fn print_ast_results(result: AstResult) {
+    match result {
+        Ok(tree) => println!("{}", tree),
+        Err(err) => eprintln!("Error: {}", err)
     }
 }
