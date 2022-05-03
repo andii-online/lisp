@@ -1,4 +1,4 @@
-use lisp::{AstResult, parse};
+use lisp::{parse, AstResult};
 use rustyline::{self, error::ReadlineError, Editor};
 
 const EXIT_MESSAGE: &str = "Exiting...";
@@ -43,6 +43,6 @@ fn main() {
 fn print_ast_results(result: AstResult) {
     match result {
         Ok(tree) => println!("{}", tree),
-        Err(err) => eprintln!("Error: {}", err)
+        Err(err) => eprintln!("Error: {}", err),
     }
 }

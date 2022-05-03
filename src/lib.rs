@@ -1,7 +1,7 @@
-use std::fmt::Debug;
-use std::hash::Hash;
 use pest::{iterators::Pair, Parser};
 use std::fmt;
+use std::fmt::Debug;
+use std::hash::Hash;
 
 #[macro_use]
 extern crate pest_derive;
@@ -20,7 +20,7 @@ pub enum RisprError {
 }
 
 impl fmt::Display for RisprError {
-    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result { 
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         match self {
             RisprError::ParseError(err) => write!(f, "{}", err),
             RisprError::ReadLineError(err) => write!(f, "{}", err),
@@ -28,11 +28,11 @@ impl fmt::Display for RisprError {
     }
 }
 
-impl<T> From<pest::error::Error<T>> for RisprError 
+impl<T> From<pest::error::Error<T>> for RisprError
 where
     T: Debug + Ord + Copy + Hash,
 {
-    fn from(error: pest::error::Error<T>) -> Self { 
+    fn from(error: pest::error::Error<T>) -> Self {
         RisprError::ParseError(format!("{}", error))
     }
 }
@@ -43,9 +43,7 @@ where
 ///
 /// if the line could not be parsed
 pub fn parse(line: &str) -> AstResult {
-    let tokens = RisprParser::parse(Rule::rispy, &line)?
-        .next()
-        .unwrap();
+    let tokens = RisprParser::parse(Rule::rispy, &line)?.next().unwrap();
 
     let ret_tree = rule_to_ast(tokens);
     let ret = evaluate_ast(&ret_tree);
@@ -62,46 +60,58 @@ fn evaluate_ast(tree: &Ast) -> i64 {
         else if let Ast::Operator(op) = &*exp[0] {
             match &op[..] {
                 "+" => {
-                    let numbers: Vec<i64> = exp[1..].iter().map(|child| evaluate_ast(&**child)).collect();
+                    let numbers: Vec<i64> = exp[1..]
+                        .iter()
+                        .map(|child| evaluate_ast(&**child))
+                        .collect();
                     let mut sum = 0;
                     for num in numbers {
                         sum += num;
                     }
 
-                    return sum; 
-                },
+                    return sum;
+                }
                 "-" => {
-                    let numbers: Vec<i64> = exp[2..].iter().map(|child| evaluate_ast(&**child)).collect();
+                    let numbers: Vec<i64> = exp[2..]
+                        .iter()
+                        .map(|child| evaluate_ast(&**child))
+                        .collect();
                     let mut sum = evaluate_ast(&*exp[1]);
                     for num in numbers {
                         sum -= num;
                     }
 
-                    return sum; 
-                },
+                    return sum;
+                }
                 "*" => {
-                    let numbers: Vec<i64> = exp[1..].iter().map(|child| evaluate_ast(&**child)).collect();
+                    let numbers: Vec<i64> = exp[1..]
+                        .iter()
+                        .map(|child| evaluate_ast(&**child))
+                        .collect();
                     let mut sum = 1;
                     for num in numbers {
                         sum *= num;
                     }
 
-                    return sum; 
-                },
+                    return sum;
+                }
                 "/" => {
-                    let numbers: Vec<i64> = exp[2..].iter().map(|child| evaluate_ast(&**child)).collect();
+                    let numbers: Vec<i64> = exp[2..]
+                        .iter()
+                        .map(|child| evaluate_ast(&**child))
+                        .collect();
                     let mut sum = evaluate_ast(&*exp[1]);
                     for num in numbers {
                         sum /= num;
                     }
 
-                    return sum; 
-                },
+                    return sum;
+                }
                 _ => (),
             }
         }
 
-        return 0
+        return 0;
     }
 
     0
