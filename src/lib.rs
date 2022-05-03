@@ -11,7 +11,7 @@ extern crate pest_derive;
 pub struct RisprParser;
 
 pub type Result<T> = std::result::Result<T, RisprError>;
-pub type AstResult = Result<Ast>;
+pub type AstResult = Result<i64>;
 
 #[derive(Debug, Clone)]
 pub enum RisprError {
@@ -43,14 +43,68 @@ where
 ///
 /// if the line could not be parsed
 pub fn parse(line: &str) -> AstResult {
-    // TODO: make this not error if the parser cannot unwrap by returning a result
     let tokens = RisprParser::parse(Rule::rispy, &line)?
         .next()
         .unwrap();
 
     let ret_tree = rule_to_ast(tokens);
+    let ret = evaluate_ast(&ret_tree);
 
-    Ok(ret_tree)
+    Ok(ret)
+}
+
+fn evaluate_ast(tree: &Ast) -> i64 {
+    if let Ast::Expression(exp) = tree {
+        if let Ast::Number(num) = &*exp[0] {
+            return *num;
+        }
+        // First member of expression has to be operator
+        else if let Ast::Operator(op) = &*exp[0] {
+            match &op[..] {
+                "+" => {
+                    let numbers: Vec<i64> = exp[1..].iter().map(|child| evaluate_ast(&**child)).collect();
+                    let mut sum = 0;
+                    for num in numbers {
+                        sum += num;
+                    }
+
+                    return sum; 
+                },
+                "-" => {
+                    let numbers: Vec<i64> = exp[2..].iter().map(|child| evaluate_ast(&**child)).collect();
+                    let mut sum = evaluate_ast(&*exp[1]);
+                    for num in numbers {
+                        sum -= num;
+                    }
+
+                    return sum; 
+                },
+                "*" => {
+                    let numbers: Vec<i64> = exp[1..].iter().map(|child| evaluate_ast(&**child)).collect();
+                    let mut sum = 1;
+                    for num in numbers {
+                        sum *= num;
+                    }
+
+                    return sum; 
+                },
+                "/" => {
+                    let numbers: Vec<i64> = exp[2..].iter().map(|child| evaluate_ast(&**child)).collect();
+                    let mut sum = evaluate_ast(&*exp[1]);
+                    for num in numbers {
+                        sum /= num;
+                    }
+
+                    return sum; 
+                },
+                _ => (),
+            }
+        }
+
+        return 0
+    }
+
+    0
 }
 
 fn rule_to_ast(rule: Pair<Rule>) -> Ast {

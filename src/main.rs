@@ -1,4 +1,4 @@
-use lisp::{RisprError, AstResult, parse};
+use lisp::{AstResult, parse};
 use rustyline::{self, error::ReadlineError, Editor};
 
 const EXIT_MESSAGE: &str = "Exiting...";
@@ -36,6 +36,8 @@ fn main() {
             }
         }
     }
+
+    rl.save_history("./.rispr-history.txt").unwrap();
 }
 
 fn print_ast_results(result: AstResult) {

@@ -1,1 +1,5 @@
+# Rust ignore
 /target
+
+# Ignore history file
+.rispr-history.txt
