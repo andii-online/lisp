@@ -1,4 +1,5 @@
 number = { "-"* ~ ASCII_DIGIT+ }
-operator = { "+" | "-" | "/" | "*" }
-expression = { number | "(" ~ operator ~ " " ~ expression ~ (" " ~ expression)+ ~ ")" }
-rispy = { operator ~ " " ~ expression ~ (" " ~ expression)+ }
+symbol = { "+" | "-" | "/" | "*" }
+sexp = { "(" ~ expression* ~ (" " ~ expression)* ~ ")" }
+expression = { number | symbol | sexp }
+rispy = { expression ~ (" " ~ expression)* }

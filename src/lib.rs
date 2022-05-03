@@ -1,7 +1,11 @@
 use pest::{iterators::Pair, Parser};
 use std::fmt;
-use std::fmt::Debug;
-use std::hash::Hash;
+use rustyline::{self, error::ReadlineError, Editor};
+
+mod error;
+use error::LvalResult;
+
+const EXIT_MESSAGE: &str = "Exiting...";
 
 #[macro_use]
 extern crate pest_derive;
@@ -10,54 +14,71 @@ extern crate pest_derive;
 #[grammar = "lisp.pest"]
 pub struct RisprParser;
 
-pub type Result<T> = std::result::Result<T, RisprError>;
-pub type AstResult = Result<i64>;
+/// Runs an interactive Lispr session in the terminal
+pub fn repl() {
+    println!("Lispr v-1.0.1");
+    println!("Use exit(), Ctrl-C, or Ctrl-D to exit prompt");
 
-#[derive(Debug, Clone)]
-pub enum RisprError {
-    ReadLineError(String),
-    ParseError(String),
-}
+    let mut rl = Editor::<()>::new();
+    if rl.load_history("./.lispr-history.txt").is_err() {
+        println!("No history found.");
+    }
 
-impl fmt::Display for RisprError {
-    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        match self {
-            RisprError::ParseError(err) => write!(f, "{}", err),
-            RisprError::ReadLineError(err) => write!(f, "{}", err),
+    loop {
+        let input = rl.readline("lispr> ");
+
+        match input {
+            Ok(line) => {
+                rl.add_history_entry(&line);
+                let result = parse(&line);
+                print_ast_results(result)
+            }
+            Err(ReadlineError::Interrupted) => {
+                println!("{}", EXIT_MESSAGE);
+
+                break;
+            }
+            Err(ReadlineError::Eof) => {
+                println!("{}", EXIT_MESSAGE);
+
+                break;
+            }
+            Err(err) => {
+                panic!("Error: {}", err);
+            }
         }
     }
+
+    rl.save_history("./.lispr-history.txt").unwrap();
 }
 
-impl<T> From<pest::error::Error<T>> for RisprError
-where
-    T: Debug + Ord + Copy + Hash,
-{
-    fn from(error: pest::error::Error<T>) -> Self {
-        RisprError::ParseError(format!("{}", error))
+fn print_ast_results(result: LvalResult) {
+    match result {
+        Ok(tree) => println!("{}", tree),
+        Err(err) => eprintln!("Error: {}", err),
     }
 }
 
-/// Converts a string to a Abstract Syntax Ast
+/// Converts a string to a Abstract Syntax Lval
 ///
 /// # Panics
 ///
 /// if the line could not be parsed
-pub fn parse(line: &str) -> AstResult {
+fn parse(line: &str) -> LvalResult {
     let tokens = RisprParser::parse(Rule::rispy, &line)?.next().unwrap();
 
     let ret_tree = rule_to_ast(tokens);
-    let ret = evaluate_ast(&ret_tree);
 
-    Ok(ret)
+    Ok(ret_tree)
 }
 
-fn evaluate_ast(tree: &Ast) -> i64 {
-    if let Ast::Expression(exp) = tree {
-        if let Ast::Number(num) = &*exp[0] {
+fn evaluate_ast(tree: &Lval) -> i64 {
+    if let Lval::Sexp(exp) = tree {
+        if let Lval::Num(num) = &*exp[0] {
             return *num;
         }
         // First member of expression has to be operator
-        else if let Ast::Operator(op) = &*exp[0] {
+        else if let Lval::Sym(op) = &*exp[0] {
             match &op[..] {
                 "+" => {
                     let numbers: Vec<i64> = exp[1..]
@@ -117,50 +138,47 @@ fn evaluate_ast(tree: &Ast) -> i64 {
     0
 }
 
-fn rule_to_ast(rule: Pair<Rule>) -> Ast {
+/// Converts the parsed tree of rules into the Lval format
+///
+/// This consumes the Pair<Rule> in the process
+fn rule_to_ast(rule: Pair<Rule>) -> Lval {
     let new_tree = match rule.as_rule() {
-        Rule::rispy => {
-            let mut children = AstChildren::new();
+        Rule::rispy | Rule::sexp => {
+            let mut children = LvalChildren::new(); 
+
             for child in rule.into_inner() {
                 children.push(Box::new(rule_to_ast(child)));
             }
 
-            Ast::Expression(children)
-        }
-        Rule::expression => {
-            let mut children = AstChildren::new();
-            for child in rule.into_inner() {
-                children.push(Box::new(rule_to_ast(child)));
-            }
-
-            Ast::Expression(children)
-        }
-        Rule::operator => Ast::Operator(rule.as_str().to_owned()),
-        Rule::number => Ast::Number(rule.as_str().parse::<i64>().unwrap()),
+            Lval::Sexp(children)
+        },
+        Rule::expression => rule_to_ast(rule.into_inner().next().unwrap()),
+        Rule::symbol => Lval::Sym(rule.as_str().to_owned()),
+        Rule::number => Lval::Num(rule.as_str().parse::<i64>().unwrap()),
     };
 
     new_tree
 }
 
-type AstChildren = Vec<Box<Ast>>;
+type LvalChildren = Vec<Box<Lval>>;
 
-pub enum Ast {
-    Number(i64),
-    Operator(String),
-    Expression(AstChildren),
+pub enum Lval {
+    Num(i64),
+    Sym(String),
+    Sexp(LvalChildren),
 }
 
-impl fmt::Display for Ast {
+impl fmt::Display for Lval {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
-            Ast::Number(num) => write!(f, "{}", num),
-            Ast::Operator(op) => write!(f, "{}", op),
-            Ast::Expression(children) => write!(f, "({})", print_ast_children(&children)),
+            Lval::Num(num) => write!(f, "{}", num),
+            Lval::Sym(op) => write!(f, "{}", op),
+            Lval::Sexp(children) => write!(f, "({})", print_ast_children(&children)),
         }
     }
 }
 
-fn print_ast_children(children: &AstChildren) -> String {
+fn print_ast_children(children: &LvalChildren) -> String {
     let mut ret = String::new();
 
     for (index, child) in children.iter().enumerate() {
