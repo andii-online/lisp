@@ -1,4 +1,4 @@
-number = { ASCII_DIGIT+ }
+number = { "-"* ~ ASCII_DIGIT+ }
 operator = { "+" | "-" | "/" | "*" }
 expression = { number | "(" ~ operator ~ " " ~ expression ~ (" " ~ expression)+ ~ ")" }
 rispy = { operator ~ " " ~ expression ~ (" " ~ expression)+ }
