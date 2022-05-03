@@ -1,18 +1,39 @@
-use std::io::{self, Write};
-use std::string;
+use lisp::parse;
+use rustyline::{self, error::ReadlineError, Editor};
+
+const EXIT_MESSAGE: &str = "Exiting...";
 
 fn main() {
-    let mut buffer = String::new();
+    println!("Rispr v0.0.1");
+    println!("Use exit(), Ctrl-C, or Ctrl-D to exit prompt");
 
-    println!("Lispy version 1.0.1");
-    println!("Press ctrl+c to exit!");
+    let mut rl = Editor::<()>::new();
+    if rl.load_history("./.rispr-history.txt").is_err() {
+        println!("No history found.");
+    }
 
     loop {
-        print!("lispy> ");
-        io::stdout().flush().unwrap();
+        let input = rl.readline("rispr> ");
 
-        io::stdin().read_line(&mut buffer).unwrap();
-        
-        println!("No you: {}", buffer.trim_end());
+        match input {
+            Ok(line) => {
+                rl.add_history_entry(&line);
+                let tree = parse(&line);
+                println!("{}", tree);
+            }
+            Err(ReadlineError::Interrupted) => {
+                println!("{}", EXIT_MESSAGE);
+
+                break;
+            }
+            Err(ReadlineError::Eof) => {
+                println!("{}", EXIT_MESSAGE);
+
+                break;
+            }
+            Err(err) => {
+                panic!("Error: {}", err);
+            }
+        }
     }
 }
