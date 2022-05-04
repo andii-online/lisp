@@ -191,3 +191,38 @@ fn print_ast_children(children: &LvalChildren) -> String {
 
     ret
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn print_tree() {
+        let mut children = LvalChildren::new();
+        children.push(Box::new(Lval::Sym("+".to_owned())));
+        children.push(Box::new(Lval::Num(10)));
+        children.push(Box::new(Lval::Num(3)));
+
+        let tree = Lval::Sexp(children);
+        assert_eq!("(+ 10 3)", format!("{}", tree));
+    }
+
+    #[test]
+    fn print_nested_tree() {
+        let mut children = LvalChildren::new();
+        children.push(Box::new(Lval::Sym("+".to_owned())));
+        children.push(Box::new(Lval::Num(10)));
+        children.push(Box::new(Lval::Num(3)));
+
+        let tree = Lval::Sexp(children);
+
+        let mut parent = LvalChildren::new();
+        parent.push(Box::new(Lval::Sym("-".to_owned())));
+        parent.push(Box::new(tree));
+        parent.push(Box::new(Lval::Num(7)));
+
+        let parent_tree = Lval::Sexp(parent);
+
+        assert_eq!("(- (+ 10 3) 7)", format!("{}", parent_tree));
+    }
+}
